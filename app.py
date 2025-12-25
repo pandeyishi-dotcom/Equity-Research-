@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 # ==================================================
-# DARK TERMINAL + INFOGRAPHIC CSS
+# DARK TERMINAL + INFOGRAPHIC CSS + BADGES
 # ==================================================
 st.markdown("""
 <style>
@@ -81,6 +81,32 @@ h1, h2, h3 {
     border-radius: 14px;
     font-weight: 600;
     margin-top: 18px;
+}
+
+/* Coverage badges */
+.badge {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-right: 10px;
+}
+.badge-init {
+    background: linear-gradient(90deg, #00c896, #4ddcff);
+    color: black;
+}
+.badge-up {
+    background: linear-gradient(90deg, #7f5cff, #4ddcff);
+    color: black;
+}
+.badge-down {
+    background: linear-gradient(90deg, #ff6b6b, #ffa36c);
+    color: black;
+}
+.badge-maintain {
+    background: rgba(255,255,255,0.18);
+    color: white;
 }
 
 /* Buttons */
@@ -166,13 +192,22 @@ def derive_rating(rev_growth, margin_change, debt_change):
     else:
         return "Cautious Bias (Academic Underperform-equivalent)"
 
+def coverage_badge(rev_growth, margin_change, debt_change):
+    if rev_growth > 40 and margin_change > 0 and debt_change <= 0:
+        return "Upgrade", "badge-up"
+    if rev_growth < 20 and margin_change < 0:
+        return "Downgrade", "badge-down"
+    if rev_growth > 20:
+        return "Maintained", "badge-maintain"
+    return "Initiating Coverage", "badge-init"
+
 def macro_overlay(sector):
     if sector == "IT Services":
-        return f"Global demand cycles dominate IT services. A {gdp.lower()} growth outlook with {interest_rate.lower()} rates is {'supportive' if gdp != 'Weak' else 'challenging'}."
+        return f"IT services are driven by global demand cycles. A {gdp.lower()} growth outlook with {interest_rate.lower()} interest rates is {'supportive' if gdp != 'Weak' else 'challenging'}."
     if sector == "FMCG":
-        return f"Consumption and inflation trends drive FMCG performance. {inflation} inflation and {gdp.lower()} GDP growth influence volume and margin stability."
+        return f"Consumption and inflation trends dominate FMCG. {inflation} inflation and {gdp.lower()} GDP growth will influence volume growth and margins."
     if sector == "Conglomerate":
-        return f"Conglomerates are sensitive to capital availability. {interest_rate} rates and {gdp.lower()} GDP growth affect allocation and execution."
+        return f"Conglomerates are sensitive to capital availability. {interest_rate} interest rates and {gdp.lower()} GDP growth will shape capital allocation."
     return "Macro conditions remain mixed."
 
 # ==================================================
@@ -196,8 +231,8 @@ if mode == "🔍 Market Screener":
 
     st.markdown('<div class="infocard">', unsafe_allow_html=True)
     st.write(
-        "This module is strictly for **idea discovery**. "
-        "Stocks shortlisted here can be promoted into the Coverage Universe."
+        "This module is used strictly for **idea discovery**. "
+        "Stocks shortlisted here may be promoted into the Coverage Universe."
     )
     st.dataframe(filtered, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -224,13 +259,17 @@ if mode == "📘 Coverage Universe (Infographic Research)":
         debt_change = df["Debt"].iloc[-1] - df["Debt"].iloc[0]
 
         rating = derive_rating(rev_growth, margin_change, debt_change)
+        badge_text, badge_class = coverage_badge(rev_growth, margin_change, debt_change)
 
         st.markdown('<div class="infocard">', unsafe_allow_html=True)
 
         st.markdown(f"""
         <div class="label">Coverage Snapshot</div>
         <h2>{company}</h2>
-        <p><b>Sector:</b> {sector} &nbsp; | &nbsp; <b>Rating:</b> {rating}</p>
+        <span class="badge {badge_class}">{badge_text}</span>
+        <p style="margin-top:10px;">
+        <b>Sector:</b> {sector} &nbsp; | &nbsp; <b>Rating:</b> {rating}
+        </p>
         """, unsafe_allow_html=True)
 
         st.markdown('<div class="strip">', unsafe_allow_html=True)
