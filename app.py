@@ -1,162 +1,103 @@
 import streamlit as st
-import yfinance as yf
 import pandas as pd
 
-# -------------------------------------------------
+# --------------------------------
 # APP CONFIG
-# -------------------------------------------------
+# --------------------------------
 st.set_page_config(page_title="Analyst Brain", layout="wide")
 st.title("🧠 Analyst Brain")
-st.caption("Autonomous Equity Research Intelligence | NSE Listed Companies")
+st.caption("Equity Research Intelligence | Fundamentals-Based Analysis")
 
-# -------------------------------------------------
-# COMPANY UNIVERSE
-# -------------------------------------------------
-companies = {
-    "Reliance Industries": "RELIANCE.NS",
-    "HDFC Bank": "HDFCBANK.NS",
-    "TCS": "TCS.NS",
-    "Infosys": "INFY.NS",
-    "ITC": "ITC.NS",
-    "ICICI Bank": "ICICIBANK.NS"
-}
-
-company_name = st.selectbox("Select Company", list(companies.keys()))
-ticker = companies[company_name]
-
-# -------------------------------------------------
-# LOAD DATA
-# -------------------------------------------------
+# --------------------------------
+# LOAD FUNDAMENTALS
+# --------------------------------
 @st.cache_data
-def load_data(ticker):
-    stock = yf.Ticker(ticker)
-    fin = stock.financials.T
-    cf = stock.cashflow.T
-    bs = stock.balance_sheet.T
-    return fin, cf, bs
+def load_fundamentals():
+    return pd.read_csv("fundamentals.csv")
 
-financials, cashflow, balance = load_data(ticker)
+data = load_fundamentals()
 
-# -------------------------------------------------
-# SAFE COLUMN FETCH
-# -------------------------------------------------
-def get_column(df, names):
-    for n in names:
-        if n in df.columns:
-            return df[n]
-    return None
+companies = data["Company"].unique().tolist()
+company = st.selectbox("Select Company", companies)
 
-revenue = get_column(financials, ["Total Revenue", "Revenue"])
-pat = get_column(financials, ["Net Income"])
-ebit = get_column(financials, ["Ebit", "Operating Income"])
-ocf = get_column(cashflow, ["Total Cash From Operating Activities"])
-debt = get_column(balance, ["Total Debt"])
+df = data[data["Company"] == company].sort_values("Year")
 
-# -------------------------------------------------
-# BUILD ANALYSIS TABLE
-# -------------------------------------------------
-df = pd.DataFrame()
-
-if revenue is not None:
-    df["Revenue"] = revenue
-
-if pat is not None:
-    df["PAT"] = pat
-
-if ebit is not None:
-    df["EBIT"] = ebit
-    df["EBIT Margin %"] = (df["EBIT"] / df["Revenue"]) * 100
-else:
-    df["EBIT Margin %"] = None
-
+# --------------------------------
+# METRICS
+# --------------------------------
 df["Revenue Growth %"] = df["Revenue"].pct_change() * 100
-df = df.dropna().tail(5)
+df["EBIT Margin %"] = (df["EBIT"] / df["Revenue"]) * 100
 
-# -------------------------------------------------
+# --------------------------------
 # SNAPSHOT
-# -------------------------------------------------
-st.subheader(f"📊 Company Snapshot — {company_name}")
+# --------------------------------
+st.subheader(f"📊 Company Snapshot — {company}")
 st.dataframe(df.round(2), use_container_width=True)
 
-# -------------------------------------------------
+# --------------------------------
 # ANALYST LOGIC
-# -------------------------------------------------
+# --------------------------------
 def revenue_trend(series):
-    if len(series) < 1:
-        return "Revenue data unavailable"
-    last = series.iloc[-1]
-    if last > 10:
+    if series.iloc[-1] > 10:
         return "Strong revenue momentum"
-    elif last > 0:
+    elif series.iloc[-1] > 0:
         return "Moderating growth"
     else:
-        return "⚠️ Revenue contraction"
+        return "⚠️ Revenue slowdown"
 
-def margin_trend(df):
-    if "EBIT Margin %" not in df.columns:
-        return "Margin data unavailable"
-    if df["EBIT Margin %"].isna().any():
-        return "Margin data unavailable"
-    if len(df) < 2:
-        return "Margin data insufficient"
-    if df["EBIT Margin %"].iloc[-1] > df["EBIT Margin %"].iloc[-2]:
+def margin_trend(series):
+    if series.iloc[-1] > series.iloc[-2]:
         return "Expanding"
     else:
         return "Compressing"
 
 def earnings_quality(pat, ocf):
-    if pat is None or ocf is None:
-        return "Cash flow data unavailable"
-    if len(pat) < 2 or len(ocf) < 2:
-        return "Cash flow data insufficient"
     if pat.iloc[-1] > pat.iloc[-2] and ocf.iloc[-1] < ocf.iloc[-2]:
         return "⚠️ Profit rising but cash flow weakening"
     return "Earnings supported by cash flow"
 
 def leverage_check(debt):
-    if debt is None or len(debt) < 2:
-        return "Debt data unavailable"
     if debt.iloc[-1] > debt.iloc[-2]:
         return "⚠️ Rising leverage"
     return "Debt stable"
 
-# -------------------------------------------------
+# --------------------------------
 # WHAT CHANGED
-# -------------------------------------------------
+# --------------------------------
 st.subheader("🔍 What Changed Recently")
 
 col1, col2 = st.columns(2)
 
 with col1:
     st.metric("Revenue Trend", revenue_trend(df["Revenue Growth %"]))
-    st.metric("Margin Trend", margin_trend(df))
+    st.metric("Margin Trend", margin_trend(df["EBIT Margin %"]))
 
 with col2:
-    st.metric("Earnings Quality", earnings_quality(pat, ocf))
-    st.metric("Balance Sheet", leverage_check(debt))
+    st.metric("Earnings Quality", earnings_quality(df["PAT"], df["OCF"]))
+    st.metric("Balance Sheet", leverage_check(df["Debt"]))
 
-# -------------------------------------------------
-# INVESTMENT THESIS
-# -------------------------------------------------
+# --------------------------------
+# THESIS
+# --------------------------------
 st.subheader("🧾 Living Investment Thesis")
 
 st.markdown("**Bull Case**")
-st.write("• Strong business franchise")
-st.write("• Consistent revenue generation")
+st.write("• Stable revenue growth with operating leverage")
+st.write("• Improving profitability metrics")
 
 st.markdown("**Bear Case**")
-st.write("• Margin or leverage pressure")
-st.write("• Cash flow discipline risk")
+st.write("• Margin pressure or leverage risk")
+st.write("• Cash flow divergence risk")
 
-# -------------------------------------------------
-# CONVICTION METER
-# -------------------------------------------------
+# --------------------------------
+# CONVICTION
+# --------------------------------
 st.subheader("📈 Conviction Meter")
 
 warnings = 0
-if "⚠️" in earnings_quality(pat, ocf):
+if "⚠️" in earnings_quality(df["PAT"], df["OCF"]):
     warnings += 1
-if "⚠️" in leverage_check(debt):
+if "⚠️" in leverage_check(df["Debt"]):
     warnings += 1
 
 if warnings >= 2:
@@ -164,17 +105,17 @@ if warnings >= 2:
 elif warnings == 1:
     st.warning("Conviction Neutral — Monitor Closely")
 else:
-    st.success("Conviction Stable")
+    st.success("Conviction Strong")
 
-# -------------------------------------------------
-# ANALYST SUMMARY
-# -------------------------------------------------
+# --------------------------------
+# SUMMARY
+# --------------------------------
 st.subheader("🧠 Analyst Summary")
 
 st.write(
-    f"{company_name} shows stable operating performance. "
-    "However, balance sheet trends and cash flow quality require monitoring. "
-    "Long-term conviction depends on sustainable profitability."
+    f"{company} demonstrates consistent operating performance with visible trends in revenue "
+    "and margins. Key risks remain linked to leverage and cash flow sustainability. "
+    "Ongoing monitoring of fundamentals is essential."
 )
 
-st.caption("⚠️ Educational equity research tool. Not investment advice.")
+st.caption("⚠️ Educational equity research prototype. Not investment advice.")
