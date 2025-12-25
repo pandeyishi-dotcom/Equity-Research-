@@ -180,4 +180,3 @@ st.write(
 )
 
 st.caption("⚠️ Educational equity research tool. Not investment advice.")
-
