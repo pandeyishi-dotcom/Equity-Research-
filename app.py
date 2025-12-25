@@ -13,7 +13,140 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ==================================================
+# ======================================import streamlit as st
+import pandas as pd
+from io import StringIO
+
+# --------------------------------------------------
+# PAGE CONFIG
+# --------------------------------------------------
+st.set_page_config(page_title="Analyst Brain – Research Coverage", layout="wide")
+st.title("🧠 Analyst Brain")
+st.caption("Automated Equity Research Coverage – Narrative Format")
+
+# --------------------------------------------------
+# DATA
+# --------------------------------------------------
+csv_data = """
+Company,Year,Revenue,EBIT,PAT,OCF,Debt
+Reliance Industries,2020,596000,98500,39354,88200,305000
+Reliance Industries,2021,539238,97500,53739,91000,280000
+Reliance Industries,2022,792756,135000,60705,118000,310000
+Reliance Industries,2023,976524,145000,66702,121000,325000
+Reliance Industries,2024,1023000,152000,73500,130000,330000
+TCS,2020,161541,40200,32430,38200,15000
+TCS,2021,164177,43000,32496,39000,14000
+TCS,2022,191754,47000,38327,42000,13000
+TCS,2023,225458,52000,42147,46000,12000
+TCS,2024,240893,56000,45000,49000,11000
+ITC,2020,44674,17000,15000,15500,12000
+ITC,2021,46395,18000,16000,16500,11000
+ITC,2022,54752,21000,18000,19500,10000
+ITC,2023,62615,24000,20000,21500,9000
+ITC,2024,70500,27000,22000,23500,8000
+"""
+
+data = pd.read_csv(StringIO(csv_data))
+
+sector_map = {
+    "Reliance Industries": "Conglomerate",
+    "TCS": "IT Services",
+    "ITC": "FMCG"
+}
+
+# --------------------------------------------------
+# COMPANY SELECTION
+# --------------------------------------------------
+companies = st.multiselect(
+    "Select companies for research coverage",
+    data["Company"].unique(),
+    default=data["Company"].unique().tolist()
+)
+
+# --------------------------------------------------
+# ANALYSIS LOOP
+# --------------------------------------------------
+for company in companies:
+    st.divider()
+    sector = sector_map.get(company, "General")
+    df = data[data["Company"] == company].sort_values("Year")
+
+    # Metrics
+    rev_growth = (df["Revenue"].iloc[-1] / df["Revenue"].iloc[0] - 1) * 100
+    margin_trend = (df["EBIT"].iloc[-1] / df["Revenue"].iloc[-1]) - (df["EBIT"].iloc[0] / df["Revenue"].iloc[0])
+    pat_growth = (df["PAT"].iloc[-1] / df["PAT"].iloc[0] - 1) * 100
+    debt_change = df["Debt"].iloc[-1] - df["Debt"].iloc[0]
+
+    # --------------------------------------------------
+    # REPORT TEXT
+    # --------------------------------------------------
+    st.subheader(f"{company} – Equity Research Coverage")
+    st.caption(f"Sector: {sector}")
+
+    st.markdown("### Executive Summary")
+    st.write(
+        f"{company} operates in the {sector} sector and has demonstrated "
+        f"{'strong' if rev_growth > 50 else 'moderate'} revenue growth over the last five years. "
+        "The business exhibits stable operating performance with manageable balance sheet risks."
+    )
+
+    st.markdown("### Business & Sector Overview")
+    st.write(
+        f"As a company operating within the {sector} space, {company} benefits from "
+        "scale advantages and established market positioning. Sector dynamics play a key role "
+        "in shaping revenue visibility, margin stability, and capital allocation decisions."
+    )
+
+    st.markdown("### Financial Performance")
+    st.write(
+        f"Over the analysis period, revenue expanded by approximately {rev_growth:.1f}%, "
+        "reflecting sustained demand and operational expansion. "
+        "Growth momentum indicates resilience across business cycles."
+    )
+
+    st.markdown("### Profitability & Margin Analysis")
+    st.write(
+        "Operating margins have "
+        f"{'expanded' if margin_trend > 0 else 'remained under pressure'}, "
+        "suggesting that growth has been accompanied by "
+        f"{'improving' if margin_trend > 0 else 'stable'} operating efficiency."
+    )
+
+    st.markdown("### Earnings Quality & Cash Flow")
+    st.write(
+        "Profit growth has been largely supported by operating cash flows, "
+        "indicating healthy earnings quality without excessive reliance on accounting adjustments."
+    )
+
+    st.markdown("### Balance Sheet & Capital Structure")
+    st.write(
+        f"Debt levels have {'increased' if debt_change > 0 else 'remained controlled'} over the period. "
+        "While leverage is an important monitorable, cash generation provides balance sheet comfort."
+    )
+
+    st.markdown("### Valuation Commentary")
+    st.write(
+        "From a valuation perspective, the company warrants assessment through relative valuation "
+        "benchmarks appropriate to its sector and growth profile. Scenario-based valuation is "
+        "preferred over single-point estimates."
+    )
+
+    st.markdown("### Risks & Monitorables")
+    st.write(
+        "Key risks include margin volatility, capital allocation decisions, and sector-specific "
+        "regulatory or competitive pressures. Monitoring cash flow sustainability remains critical."
+    )
+
+    st.markdown("### Investment Thesis & Conclusion")
+    st.write(
+        f"Overall, {company} presents a "
+        f"{'constructive' if rev_growth > 40 and margin_trend > 0 else 'balanced'} "
+        "fundamental profile. Long-term performance will depend on the company’s ability to "
+        "sustain growth while maintaining financial discipline."
+    )
+
+st.caption("⚠️ Educational equity research coverage. Not investment advice.")
+============
 # GLOBAL CSS + JS (ANIMATION + TERMINAL FEEL)
 # ==================================================
 st.markdown("""
