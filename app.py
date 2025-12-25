@@ -7,10 +7,10 @@ import pandas as pd
 # -------------------------------------------------
 st.set_page_config(page_title="Analyst Brain", layout="wide")
 st.title("🧠 Analyst Brain")
-st.caption("Autonomous Equity Research Intelligence | NSE/BSE Listed Companies")
+st.caption("Autonomous Equity Research Intelligence | NSE Listed Companies")
 
 # -------------------------------------------------
-# COMPANY UNIVERSE (REAL NSE)
+# COMPANY UNIVERSE
 # -------------------------------------------------
 companies = {
     "Reliance Industries": "RELIANCE.NS",
@@ -25,7 +25,7 @@ company_name = st.selectbox("Select Company", list(companies.keys()))
 ticker = companies[company_name]
 
 # -------------------------------------------------
-# DATA LOADER
+# LOAD DATA
 # -------------------------------------------------
 @st.cache_data
 def load_data(ticker):
@@ -38,22 +38,22 @@ def load_data(ticker):
 financials, cashflow, balance = load_data(ticker)
 
 # -------------------------------------------------
-# SAFE COLUMN FETCHER
+# SAFE COLUMN FETCH
 # -------------------------------------------------
-def safe_column(df, possible_names):
-    for col in possible_names:
-        if col in df.columns:
-            return df[col]
+def get_column(df, names):
+    for n in names:
+        if n in df.columns:
+            return df[n]
     return None
 
-revenue = safe_column(financials, ["Total Revenue", "Revenue"])
-pat = safe_column(financials, ["Net Income"])
-ebit = safe_column(financials, ["Ebit", "Operating Income"])
-ocf = safe_column(cashflow, ["Total Cash From Operating Activities"])
-debt = safe_column(balance, ["Total Debt"])
+revenue = get_column(financials, ["Total Revenue", "Revenue"])
+pat = get_column(financials, ["Net Income"])
+ebit = get_column(financials, ["Ebit", "Operating Income"])
+ocf = get_column(cashflow, ["Total Cash From Operating Activities"])
+debt = get_column(balance, ["Total Debt"])
 
 # -------------------------------------------------
-# BUILD ANALYSIS DATAFRAME
+# BUILD ANALYSIS TABLE
 # -------------------------------------------------
 df = pd.DataFrame()
 
@@ -79,51 +79,49 @@ st.subheader(f"📊 Company Snapshot — {company_name}")
 st.dataframe(df.round(2), use_container_width=True)
 
 # -------------------------------------------------
-# ANALYST LOGIC FUNCTIONS
+# ANALYST LOGIC
 # -------------------------------------------------
-def revenue_trend(growth):
-    try:
-        if growth.iloc[-1] > 10:
-            return "Strong revenue momentum"
-        elif growth.iloc[-1] > 0:
-            return "Moderating growth"
-        else:
-            return "⚠️ Revenue contraction"
-    except:
-        return "Revenue data insufficient"
-
-def earnings_quality(pat, ocf):
-    try:
-        if pat.iloc[-1] > pat.iloc[-2] and ocf.iloc[-1] < ocf.iloc[-2]:
-            return "⚠️ Profit rising but cash flow weakening"
-        else:
-            return "Earnings supported by cash flow"
-    except:
-        return "Cash flow data unavailable"
-
-def leverage_check(debt):
-    try:
-        if debt.iloc[-1] > debt.iloc[-2]:
-            return "⚠️ Rising leverage"
-        else:
-            return "Debt levels stable"
-    except:
-        return "Debt data unavailable"
+def revenue_trend(series):
+    if len(series) < 1:
+        return "Revenue data unavailable"
+    last = series.iloc[-1]
+    if last > 10:
+        return "Strong revenue momentum"
+    elif last > 0:
+        return "Moderating growth"
+    else:
+        return "⚠️ Revenue contraction"
 
 def margin_trend(df):
-    try:
-        if df["EBIT Margin %"].notna().all() and len(df) >= 2:
-            if df["EBIT Margin %"].iloc[-1] > df["EBIT Margin %"].iloc[-2]:
-                return "Expanding"
-            else:
-                return "Compressing"
-        else:
-            return "Margin data unavailable"
-    except:
+    if "EBIT Margin %" not in df.columns:
         return "Margin data unavailable"
+    if df["EBIT Margin %"].isna().any():
+        return "Margin data unavailable"
+    if len(df) < 2:
+        return "Margin data insufficient"
+    if df["EBIT Margin %"].iloc[-1] > df["EBIT Margin %"].iloc[-2]:
+        return "Expanding"
+    else:
+        return "Compressing"
+
+def earnings_quality(pat, ocf):
+    if pat is None or ocf is None:
+        return "Cash flow data unavailable"
+    if len(pat) < 2 or len(ocf) < 2:
+        return "Cash flow data insufficient"
+    if pat.iloc[-1] > pat.iloc[-2] and ocf.iloc[-1] < ocf.iloc[-2]:
+        return "⚠️ Profit rising but cash flow weakening"
+    return "Earnings supported by cash flow"
+
+def leverage_check(debt):
+    if debt is None or len(debt) < 2:
+        return "Debt data unavailable"
+    if debt.iloc[-1] > debt.iloc[-2]:
+        return "⚠️ Rising leverage"
+    return "Debt stable"
 
 # -------------------------------------------------
-# WHAT CHANGED SECTION
+# WHAT CHANGED
 # -------------------------------------------------
 st.subheader("🔍 What Changed Recently")
 
@@ -138,17 +136,17 @@ with col2:
     st.metric("Balance Sheet", leverage_check(debt))
 
 # -------------------------------------------------
-# LIVING INVESTMENT THESIS
+# INVESTMENT THESIS
 # -------------------------------------------------
 st.subheader("🧾 Living Investment Thesis")
 
 st.markdown("**Bull Case**")
-st.write("• Established business with strong market positioning")
-st.write("• Consistent revenue generation across cycles")
+st.write("• Strong business franchise")
+st.write("• Consistent revenue generation")
 
 st.markdown("**Bear Case**")
-st.write("• Margin pressure or leverage may impact returns")
-st.write("• Cash flow discipline remains a key monitor")
+st.write("• Margin or leverage pressure")
+st.write("• Cash flow discipline risk")
 
 # -------------------------------------------------
 # CONVICTION METER
@@ -174,9 +172,9 @@ else:
 st.subheader("🧠 Analyst Summary")
 
 st.write(
-    f"{company_name} exhibits stable operating fundamentals supported by consistent revenue trends. "
-    "However, balance sheet movement and cash flow quality remain key variables to monitor. "
-    "Long-term conviction depends on sustaining profitability without increasing financial risk."
+    f"{company_name} shows stable operating performance. "
+    "However, balance sheet trends and cash flow quality require monitoring. "
+    "Long-term conviction depends on sustainable profitability."
 )
 
 st.caption("⚠️ Educational equity research tool. Not investment advice.")
