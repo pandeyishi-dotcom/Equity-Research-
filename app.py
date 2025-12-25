@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from io import StringIO
 
 # --------------------------------
 # APP CONFIG
@@ -9,17 +10,48 @@ st.title("🧠 Analyst Brain")
 st.caption("Equity Research Intelligence | Fundamentals-Based Analysis")
 
 # --------------------------------
-# LOAD FUNDAMENTALS
+# EMBEDDED FUNDAMENTAL DATA
 # --------------------------------
-@st.cache_data
-def load_fundamentals():
-    return pd.read_csv("fundamentals.csv")
+csv_data = """
+Company,Year,Revenue,EBIT,PAT,OCF,Debt
+Reliance Industries,2020,596000,98500,39354,88200,305000
+Reliance Industries,2021,539238,97500,53739,91000,280000
+Reliance Industries,2022,792756,135000,60705,118000,310000
+Reliance Industries,2023,976524,145000,66702,121000,325000
+Reliance Industries,2024,1023000,152000,73500,130000,330000
+HDFC Bank,2020,122000,54000,31000,48000,120000
+HDFC Bank,2021,138000,60000,35000,52000,130000
+HDFC Bank,2022,156000,69000,41000,61000,150000
+HDFC Bank,2023,176000,77000,44000,68000,165000
+HDFC Bank,2024,196000,85000,50000,72000,180000
+TCS,2020,161541,40200,32430,38200,15000
+TCS,2021,164177,43000,32496,39000,14000
+TCS,2022,191754,47000,38327,42000,13000
+TCS,2023,225458,52000,42147,46000,12000
+TCS,2024,240893,56000,45000,49000,11000
+ITC,2020,44674,17000,15000,15500,12000
+ITC,2021,46395,18000,16000,16500,11000
+ITC,2022,54752,21000,18000,19500,10000
+ITC,2023,62615,24000,20000,21500,9000
+ITC,2024,70500,27000,22000,23500,8000
+Infosys,2020,90791,25000,21000,23000,10000
+Infosys,2021,100472,28000,23000,26000,9000
+Infosys,2022,121641,32000,26000,30000,8000
+Infosys,2023,146767,36000,29000,33000,7000
+Infosys,2024,156000,38000,31000,35000,6000
+ICICI Bank,2020,84400,28000,7900,25000,300000
+ICICI Bank,2021,102000,35000,16000,34000,290000
+ICICI Bank,2022,121000,45000,23000,41000,275000
+ICICI Bank,2023,147000,56000,31000,48000,260000
+ICICI Bank,2024,172000,68000,40000,56000,245000
+"""
 
-data = load_fundamentals()
+data = pd.read_csv(StringIO(csv_data))
 
-companies = data["Company"].unique().tolist()
-company = st.selectbox("Select Company", companies)
-
+# --------------------------------
+# COMPANY SELECTION
+# --------------------------------
+company = st.selectbox("Select Company", data["Company"].unique())
 df = data[data["Company"] == company].sort_values("Year")
 
 # --------------------------------
@@ -37,19 +69,16 @@ st.dataframe(df.round(2), use_container_width=True)
 # --------------------------------
 # ANALYST LOGIC
 # --------------------------------
-def revenue_trend(series):
-    if series.iloc[-1] > 10:
+def revenue_trend(x):
+    if x.iloc[-1] > 10:
         return "Strong revenue momentum"
-    elif series.iloc[-1] > 0:
+    elif x.iloc[-1] > 0:
         return "Moderating growth"
     else:
         return "⚠️ Revenue slowdown"
 
-def margin_trend(series):
-    if series.iloc[-1] > series.iloc[-2]:
-        return "Expanding"
-    else:
-        return "Compressing"
+def margin_trend(x):
+    return "Expanding" if x.iloc[-1] > x.iloc[-2] else "Compressing"
 
 def earnings_quality(pat, ocf):
     if pat.iloc[-1] > pat.iloc[-2] and ocf.iloc[-1] < ocf.iloc[-2]:
@@ -57,9 +86,7 @@ def earnings_quality(pat, ocf):
     return "Earnings supported by cash flow"
 
 def leverage_check(debt):
-    if debt.iloc[-1] > debt.iloc[-2]:
-        return "⚠️ Rising leverage"
-    return "Debt stable"
+    return "⚠️ Rising leverage" if debt.iloc[-1] > debt.iloc[-2] else "Debt stable"
 
 # --------------------------------
 # WHAT CHANGED
@@ -75,19 +102,6 @@ with col1:
 with col2:
     st.metric("Earnings Quality", earnings_quality(df["PAT"], df["OCF"]))
     st.metric("Balance Sheet", leverage_check(df["Debt"]))
-
-# --------------------------------
-# THESIS
-# --------------------------------
-st.subheader("🧾 Living Investment Thesis")
-
-st.markdown("**Bull Case**")
-st.write("• Stable revenue growth with operating leverage")
-st.write("• Improving profitability metrics")
-
-st.markdown("**Bear Case**")
-st.write("• Margin pressure or leverage risk")
-st.write("• Cash flow divergence risk")
 
 # --------------------------------
 # CONVICTION
@@ -113,9 +127,9 @@ else:
 st.subheader("🧠 Analyst Summary")
 
 st.write(
-    f"{company} demonstrates consistent operating performance with visible trends in revenue "
-    "and margins. Key risks remain linked to leverage and cash flow sustainability. "
-    "Ongoing monitoring of fundamentals is essential."
+    f"{company} shows clear trends in revenue and profitability. "
+    "The key monitor remains margin sustainability and balance sheet discipline. "
+    "This analysis focuses on fundamentals rather than price movements."
 )
 
 st.caption("⚠️ Educational equity research prototype. Not investment advice.")
