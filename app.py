@@ -6,12 +6,12 @@ from fpdf import FPDF
 # --------------------------------------------------
 # APP CONFIG
 # --------------------------------------------------
-st.set_page_config(page_title="Analyst Brain", layout="wide")
-st.title("🧠 Analyst Brain")
-st.caption("Sector-Aware Equity Research Intelligence System")
+st.set_page_config(page_title="Analyst Brain Pro", layout="wide")
+st.title("🧠 Analyst Brain Pro")
+st.caption("Advanced, Sector-Aware Equity Research Intelligence")
 
 # --------------------------------------------------
-# EMBEDDED FUNDAMENTAL DATA (CONTROLLED DATA LAYER)
+# EMBEDDED FUNDAMENTAL DATA
 # --------------------------------------------------
 csv_data = """
 Company,Year,Revenue,EBIT,PAT,OCF,Debt
@@ -50,7 +50,7 @@ ITC,2024,70500,27000,22000,23500,8000
 data = pd.read_csv(StringIO(csv_data))
 
 # --------------------------------------------------
-# SECTOR MAPPING
+# SECTOR MAP
 # --------------------------------------------------
 sector_map = {
     "Reliance Industries": "Conglomerate",
@@ -74,157 +74,119 @@ df = data[data["Company"] == company].sort_values("Year")
 # METRICS
 # --------------------------------------------------
 df["Revenue Growth %"] = df["Revenue"].pct_change() * 100
+df["PAT Growth %"] = df["PAT"].pct_change() * 100
 df["EBIT Margin %"] = (df["EBIT"] / df["Revenue"]) * 100
+df["Capital Employed"] = df["Debt"] + (0.3 * df["Revenue"])
+df["ROCE %"] = (df["EBIT"] / df["Capital Employed"]) * 100
+df["EPS Index"] = df["PAT"] / 1000
 
 # --------------------------------------------------
 # SNAPSHOT
 # --------------------------------------------------
-st.subheader(f"📊 Company Snapshot — {company}")
+st.subheader("📊 Financial Snapshot")
 st.dataframe(df.round(2), use_container_width=True)
 
 # --------------------------------------------------
-# SECTOR INSIGHT
+# ANALYST FUNCTIONS
 # --------------------------------------------------
-def sector_insight(sector):
-    if sector == "Banking":
-        return "Focus on asset quality, credit growth, and balance sheet strength."
-    if sector == "IT Services":
-        return "Focus on revenue growth, margins, and cash generation."
-    if sector == "FMCG":
-        return "Focus on pricing power, margin stability, and demand resilience."
-    if sector == "Conglomerate":
-        return "Focus on capital allocation, leverage, and segment performance."
-    return "Focus on revenue and profitability sustainability."
+def consistency(series):
+    pos = (series > 0).sum()
+    total = len(series.dropna())
+    if total == 0:
+        return "Insufficient data"
+    ratio = pos / total
+    if ratio >= 0.8:
+        return "Highly Consistent"
+    elif ratio >= 0.5:
+        return "Moderately Consistent"
+    return "Inconsistent"
 
-st.info(sector_insight(sector))
-
-# --------------------------------------------------
-# ANALYST LOGIC
-# --------------------------------------------------
-def revenue_trend(x):
-    if x.iloc[-1] > 10:
-        return "Strong growth"
-    elif x.iloc[-1] > 0:
-        return "Moderating growth"
-    return "⚠️ Revenue slowdown"
-
-def margin_trend(x):
-    return "Expanding" if x.iloc[-1] > x.iloc[-2] else "Compressing"
+def growth_quality(rg, pg):
+    if rg > 10 and pg > rg:
+        return "High Quality Growth"
+    if rg > 0 and pg > 0:
+        return "Moderate Quality Growth"
+    return "Low Quality Growth"
 
 def earnings_quality(pat, ocf):
     if pat.iloc[-1] > pat.iloc[-2] and ocf.iloc[-1] < ocf.iloc[-2]:
         return "⚠️ Profit rising but cash flow weakening"
     return "Earnings supported by cash flow"
 
-def leverage_check(debt):
+def leverage_signal(debt):
     return "⚠️ Rising leverage" if debt.iloc[-1] > debt.iloc[-2] else "Debt stable"
 
+def roce_signal(roce):
+    if roce > 20:
+        return "Excellent capital efficiency"
+    if roce > 12:
+        return "Acceptable capital efficiency"
+    return "⚠️ Weak capital efficiency"
+
 # --------------------------------------------------
-# WHAT CHANGED
+# INSIGHTS
 # --------------------------------------------------
-st.subheader("🔍 What Changed Recently")
+st.subheader("🧠 Analytical Insights")
 
 col1, col2 = st.columns(2)
 with col1:
-    st.metric("Revenue Trend", revenue_trend(df["Revenue Growth %"]))
-    st.metric("Margin Trend", margin_trend(df["EBIT Margin %"]))
+    st.metric("Revenue Consistency", consistency(df["Revenue Growth %"]))
+    st.metric("Margin Consistency", consistency(df["EBIT Margin %"].diff()))
+    st.metric("Growth Quality", growth_quality(df["Revenue Growth %"].iloc[-1], df["PAT Growth %"].iloc[-1]))
+
 with col2:
     st.metric("Earnings Quality", earnings_quality(df["PAT"], df["OCF"]))
-    st.metric("Balance Sheet", leverage_check(df["Debt"]))
+    st.metric("Leverage Signal", leverage_signal(df["Debt"]))
+    st.metric("ROCE Signal", roce_signal(df["ROCE %"].iloc[-1]))
 
 # --------------------------------------------------
-# VALUATION MODULE
+# VALUATION
 # --------------------------------------------------
-st.subheader("💰 Valuation Snapshot")
+st.subheader("💰 Scenario Valuation")
 
-if sector == "IT Services":
-    pe = 20
-elif sector == "Banking":
-    pe = 15
-elif sector == "FMCG":
-    pe = 25
-else:
-    pe = 18
+pe_base = 20 if sector == "IT Services" else 15 if sector == "Banking" else 18
+scenarios = {"Bear": pe_base - 3, "Base": pe_base, "Bull": pe_base + 3}
 
-df["EPS (Index)"] = df["PAT"] / 1000
-df["Implied Value"] = df["EPS (Index)"] * pe
-
-st.write(f"Assumed P/E Multiple: **{pe}x**")
-st.metric("Implied Equity Value (Index)", round(df["Implied Value"].iloc[-1], 2))
-st.caption("Simplified relative valuation for educational purposes.")
+for s, pe in scenarios.items():
+    st.write(f"{s} Case ({pe}x):", round(df["EPS Index"].iloc[-1] * pe, 2))
 
 # --------------------------------------------------
-# CONVICTION METER
+# THESIS STABILITY
 # --------------------------------------------------
-st.subheader("📈 Conviction Meter")
-
 warnings = 0
 if "⚠️" in earnings_quality(df["PAT"], df["OCF"]):
     warnings += 1
-if "⚠️" in leverage_check(df["Debt"]):
+if "⚠️" in leverage_signal(df["Debt"]):
+    warnings += 1
+if "⚠️" in roce_signal(df["ROCE %"].iloc[-1]):
     warnings += 1
 
-if warnings >= 2:
-    st.error("Conviction Weakening")
-elif warnings == 1:
-    st.warning("Conviction Neutral")
-else:
-    st.success("Conviction Strong")
+st.subheader("📈 Thesis Stability")
+st.metric("Thesis Status", "Strengthening" if warnings == 0 else "Stable but Fragile" if warnings == 1 else "Weakening")
 
 # --------------------------------------------------
-# IC NOTE PDF EXPORT
+# EXECUTIVE SUMMARY
 # --------------------------------------------------
-def generate_ic_note(company, sector, df):
+st.subheader("🧾 Auto Executive Summary")
+
+st.write(
+    f"{company} operates in the {sector} sector and demonstrates "
+    f"{consistency(df['Revenue Growth %'])} revenue performance. "
+    f"Growth quality is assessed as {growth_quality(df['Revenue Growth %'].iloc[-1], df['PAT Growth %'].iloc[-1])}. "
+    f"Capital efficiency is {roce_signal(df['ROCE %'].iloc[-1])}, while "
+    f"{earnings_quality(df['PAT'], df['OCF'])}. "
+    f"Overall thesis is currently assessed as "
+    f"{'robust' if warnings == 0 else 'moderate' if warnings == 1 else 'under pressure'}."
+)
+
+# --------------------------------------------------
+# IC NOTE PDF
+# --------------------------------------------------
+def generate_pdf():
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=11)
-
-    pdf.cell(0, 10, f"Investment Committee Note: {company}", ln=True)
-    pdf.cell(0, 8, f"Sector: {sector}", ln=True)
-    pdf.ln(4)
-
-    pdf.multi_cell(0, 8,
-        f"Financial Snapshot:\n"
-        f"Revenue Growth: {round(df['Revenue Growth %'].iloc[-1],2)}%\n"
-        f"EBIT Margin: {round(df['EBIT Margin %'].iloc[-1],2)}%\n"
-    )
-
-    pdf.ln(2)
-    pdf.multi_cell(0, 8,
-        "Key Risks:\n"
-        "- Margin pressure\n"
-        "- Balance sheet discipline\n"
-    )
-
-    pdf.ln(2)
-    pdf.multi_cell(0, 8,
-        "Conclusion:\n"
-        "Company fundamentals remain stable with risks requiring monitoring."
-    )
-
+    pdf.multi_cell(0, 8, f"IC Note – {company}\nSector: {sector}\n\nExecutive Summary:\n" + st.session_state.summary)
     return pdf
-
-st.subheader("📄 Export IC Note")
-
-if st.button("Download IC Note (PDF)"):
-    pdf = generate_ic_note(company, sector, df)
-    pdf.output("IC_Note.pdf")
-    with open("IC_Note.pdf", "rb") as f:
-        st.download_button(
-            "Click to Download IC Note",
-            f,
-            file_name="IC_Note.pdf"
-        )
-
-# --------------------------------------------------
-# FINAL SUMMARY
-# --------------------------------------------------
-st.subheader("🧠 Analyst Summary")
-
-st.write(
-    f"{company} demonstrates clear trends in revenue and profitability. "
-    "Sector-specific factors and balance sheet movements remain key monitorables. "
-    "This system is designed to support structured equity research decision-making."
-)
 
 st.caption("⚠️ Educational equity research system. Not investment advice.")
