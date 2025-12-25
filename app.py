@@ -1,20 +1,19 @@
 import streamlit as st
 import pandas as pd
 from io import StringIO, BytesIO
-from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 
 # ==================================================
-# PAGE CONFIG
+# PAGE CONFIG (CLOUD SAFE)
 # ==================================================
 st.set_page_config(
-    page_title="Analyst Brain Terminal",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="Analyst Brain – Equity Research Terminal",
+    layout="wide"
 )
 
 # ==================================================
-# DARK TERMINAL + INFOGRAPHIC CSS
+# GLOBAL THEME (DARK + INFOGRAPHIC)
 # ==================================================
 st.markdown("""
 <style>
@@ -30,7 +29,7 @@ section[data-testid="stSidebar"] {
     background: linear-gradient(135deg, rgba(127,92,255,0.15), rgba(77,220,255,0.07));
     border-radius: 20px;
     padding: 26px;
-    margin-bottom: 30px;
+    margin-bottom: 28px;
     border: 1px solid rgba(255,255,255,0.08);
 }
 .strip {
@@ -46,6 +45,7 @@ section[data-testid="stSidebar"] {
     border-radius: 20px;
     font-size: 12px;
     font-weight: 600;
+    margin-right: 10px;
 }
 .badge-init { background:#00c896; color:black; }
 .badge-up { background:#7f5cff; color:black; }
@@ -58,113 +58,152 @@ section[data-testid="stSidebar"] {
     border-radius:14px;
     font-weight:600;
 }
+.small {
+    color:#b6b9d6;
+    font-size:13px;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # ==================================================
 # TITLE
 # ==================================================
-st.markdown("## 🧠 Analyst Brain Terminal")
-st.caption("Institutional-Style Infographic Equity Research")
+st.markdown("## 🧠 Analyst Brain")
+st.caption("Institutional-Style Infographic Equity Research (Academic)")
 
 # ==================================================
-# DATA
+# DATA (SELF-CONTAINED)
 # ==================================================
-coverage_csv = """
-Company,Year,Revenue,EBIT,PAT,OCF,Debt
-Reliance Industries,2020,596000,98500,39354,88200,305000
-Reliance Industries,2024,1023000,152000,73500,130000,330000
-TCS,2020,161541,40200,32430,38200,15000
-TCS,2024,240893,56000,45000,49000,11000
-ITC,2020,44674,17000,15000,15500,12000
-ITC,2024,70500,27000,22000,23500,8000
+DATA = """
+Company,Year,Revenue,EBIT,PAT,OCF,Debt,Sector
+Reliance Industries,2020,596000,98500,39354,88200,305000,Conglomerate
+Reliance Industries,2024,1023000,152000,73500,130000,330000,Conglomerate
+TCS,2020,161541,40200,32430,38200,15000,IT Services
+TCS,2024,240893,56000,45000,49000,11000,IT Services
+ITC,2020,44674,17000,15000,15500,12000,FMCG
+ITC,2024,70500,27000,22000,23500,8000,FMCG
 """
-df = pd.read_csv(StringIO(coverage_csv))
 
-sector_map = {
-    "Reliance Industries": "Conglomerate",
-    "TCS": "IT Services",
-    "ITC": "FMCG"
-}
+df = pd.read_csv(StringIO(DATA))
 
 # ==================================================
-# LOGIC
+# ANALYTICAL LOGIC
 # ==================================================
-def rating_logic(g, m, d):
+def compute_metrics(dfx):
+    growth = (dfx["Revenue"].iloc[-1] / dfx["Revenue"].iloc[0] - 1) * 100
+    margin_delta = (
+        dfx["EBIT"].iloc[-1] / dfx["Revenue"].iloc[-1]
+        - dfx["EBIT"].iloc[0] / dfx["Revenue"].iloc[0]
+    )
+    debt_delta = dfx["Debt"].iloc[-1] - dfx["Debt"].iloc[0]
+    return growth, margin_delta, debt_delta
+
+def rating_and_badge(g, m, d):
     if g > 40 and m > 0 and d <= 0:
-        return "Positive Bias", "Upgrade", "badge-up"
+        return "Positive Bias (Buy-equivalent)", "Upgrade", "badge-up"
     if g < 20 and m < 0:
-        return "Cautious Bias", "Downgrade", "badge-down"
+        return "Cautious Bias (Underperform-equivalent)", "Downgrade", "badge-down"
     if g > 20:
-        return "Neutral Bias", "Maintained", "badge-maintain"
-    return "Neutral Bias", "Initiating Coverage", "badge-init"
+        return "Neutral Bias (Hold-equivalent)", "Maintained", "badge-maintain"
+    return "Neutral Bias (Hold-equivalent)", "Initiating Coverage", "badge-init"
+
+def checklist(g, m, d):
+    return {
+        "Revenue Visibility": "✅" if g > 20 else "⚠️",
+        "Margin Stability": "✅" if m > 0 else "⚠️",
+        "Balance Sheet Risk": "⚠️" if d > 0 else "✅",
+        "Macro Alignment": "⚠️"
+    }
 
 # ==================================================
-# COMPANY SELECT
+# COMPANY SELECTION
 # ==================================================
 companies = st.multiselect(
-    "Select companies",
+    "Coverage Universe",
     df["Company"].unique(),
-    default=df["Company"].unique().tolist(),
-    key="companies"
+    default=df["Company"].unique().tolist()
 )
 
 # ==================================================
-# MAIN LOOP
+# MAIN RENDER
 # ==================================================
 for company in companies:
     dfx = df[df["Company"] == company].sort_values("Year")
-    sector = sector_map.get(company, "General")
+    sector = dfx["Sector"].iloc[0]
 
-    g = (dfx["Revenue"].iloc[-1] / dfx["Revenue"].iloc[0] - 1) * 100
-    m = (dfx["EBIT"].iloc[-1] / dfx["Revenue"].iloc[-1]) - \
-        (dfx["EBIT"].iloc[0] / dfx["Revenue"].iloc[0])
-    d = dfx["Debt"].iloc[-1] - dfx["Debt"].iloc[0]
-
-    rating, badge_text, badge_class = rating_logic(g, m, d)
+    g, m, d = compute_metrics(dfx)
+    rating, badge_text, badge_class = rating_and_badge(g, m, d)
+    ic = checklist(g, m, d)
 
     st.markdown('<div class="infocard">', unsafe_allow_html=True)
-    st.markdown(f"### {company}")
-    st.markdown(f"<span class='badge {badge_class}'>{badge_text}</span>  **{rating}**", unsafe_allow_html=True)
-    st.caption(f"Sector: {sector}")
 
+    # HEADER
+    st.markdown(f"### {company}")
+    st.markdown(
+        f"<span class='badge {badge_class}'>{badge_text}</span>"
+        f"<b>{rating}</b>",
+        unsafe_allow_html=True
+    )
+    st.markdown(f"<span class='small'>Sector: {sector}</span>", unsafe_allow_html=True)
+
+    # COVERAGE HISTORY
+    st.markdown("**Coverage History**")
+    st.write(f"Initiation → Maintained → **{badge_text}**")
+
+    # STORY STRIPS
     st.markdown('<div class="strip">📈 Growth</div>', unsafe_allow_html=True)
-    st.write(f"Revenue grew {g:.1f}% over the period.")
+    st.write(f"Revenue expanded by **{g:.1f}%**, indicating scale-driven growth.")
 
     st.markdown('<div class="strip">💰 Profitability</div>', unsafe_allow_html=True)
-    st.write("Margins have " + ("expanded." if m > 0 else "remained stable."))
+    st.write("Operating margins have " + ("expanded." if m > 0 else "remained stable."))
 
     st.markdown('<div class="strip">🏦 Balance Sheet</div>', unsafe_allow_html=True)
-    st.write("Debt has " + ("increased." if d > 0 else "remained controlled."))
+    st.write("Debt levels have " + ("increased." if d > 0 else "remained controlled."))
 
+    # VARIANT VIEW
     st.markdown("**Variant View**")
-    st.write("Bull: Margin expansion")
-    st.write("Base: Stable execution")
-    st.write("Bear: Leverage risk")
+    st.write("**Bull:** Margin expansion + operating leverage.")
+    st.write("**Base:** Stable growth and cash generation.")
+    st.write("**Bear:** Margin pressure and capital intensity.")
 
+    # IC CHECKLIST
+    st.markdown("**Investment Committee Checklist**")
+    for k, v in ic.items():
+        st.write(f"{v} {k}")
+
+    # RISK HEATMAP
+    st.markdown("**Risk Heatmap**")
+    st.write("Macro 🔴 | Execution 🟡 | Balance Sheet 🟢")
+
+    # FINAL TAKE
     st.markdown('<div class="final-take">', unsafe_allow_html=True)
-    st.write(f"{company} remains a {rating.lower()} idea in coverage.")
+    st.write(
+        f"{company} remains a **{rating.lower()}** idea. "
+        "Future outcomes depend on execution quality and macro conditions."
+    )
     st.markdown('</div>', unsafe_allow_html=True)
 
-    if st.button(f"📄 Export {company} PDF", key=f"pdf_{company}"):
-        buffer = BytesIO()
-        with PdfPages(buffer) as pdf:
+    # PDF EXPORT
+    if st.button(f"📄 Export {company} Research PDF", key=f"pdf_{company}"):
+        buf = BytesIO()
+        with PdfPages(buf) as pdf:
             fig, ax = plt.subplots(figsize=(8.5, 11))
             ax.axis("off")
-            ax.text(0.05, 0.9, f"{company} Research Note", fontsize=18)
+            ax.text(0.05, 0.9, f"{company} – Equity Research Note", fontsize=18)
             ax.text(0.05, 0.85, f"Rating: {rating}", fontsize=12)
             ax.text(0.05, 0.8, f"Revenue Growth: {g:.1f}%", fontsize=12)
+            ax.text(0.05, 0.75, "Variant View: Bull / Base / Bear", fontsize=12)
             pdf.savefig(fig)
             plt.close(fig)
-        buffer.seek(0)
+        buf.seek(0)
         st.download_button(
             "⬇️ Download PDF",
-            buffer,
-            file_name=f"{company}_Research.pdf",
+            buf,
+            file_name=f"{company}_Equity_Research.pdf",
             mime="application/pdf",
             key=f"dl_{company}"
         )
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-st.caption("⚠️ Educational use only. Not investment advice.")
+st.caption("⚠️ Academic equity research tool. Not investment advice.")
