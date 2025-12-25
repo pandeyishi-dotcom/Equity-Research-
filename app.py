@@ -146,7 +146,7 @@ for company in companies:
     )
 
 st.caption("⚠️ Educational equity research coverage. Not investment advice.")
-============
+#============
 # GLOBAL CSS + JS (ANIMATION + TERMINAL FEEL)
 # ==================================================
 st.markdown("""
