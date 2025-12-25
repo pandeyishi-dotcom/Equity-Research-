@@ -147,4 +147,3 @@ if mode == "Coverage Universe (Deep Research)":
         )
 
 st.caption("⚠️ Educational hybrid research platform. Not investment advice.")
-
