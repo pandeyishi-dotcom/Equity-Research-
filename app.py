@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 # ==================================================
-# DARK TERMINAL THEME (REAPPLIED)
+# DARK TERMINAL + INFOGRAPHIC CSS
 # ==================================================
 st.markdown("""
 <style>
@@ -32,18 +32,55 @@ h1, h2, h3 {
     color: #ffffff;
 }
 
-/* Cards */
-.card {
-    background: rgba(255,255,255,0.06);
-    border-radius: 16px;
-    padding: 20px;
+/* Infographic cards */
+.infocard {
+    background: linear-gradient(135deg, rgba(127,92,255,0.12), rgba(77,220,255,0.05));
+    border-radius: 18px;
+    padding: 26px;
+    margin-bottom: 28px;
+    border: 1px solid rgba(255,255,255,0.08);
     box-shadow: 0 15px 40px rgba(0,0,0,0.45);
-    margin-bottom: 20px;
 }
 
-/* Subtle divider */
-hr {
-    border: 1px solid rgba(255,255,255,0.08);
+/* Section strips */
+.strip {
+    background: rgba(255,255,255,0.05);
+    border-left: 5px solid #7f5cff;
+    padding: 16px 20px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+/* Signals */
+.signal-good {
+    background: rgba(0,200,150,0.14);
+    border-left: 5px solid #00c896;
+    padding: 16px;
+    border-radius: 12px;
+}
+.signal-watch {
+    background: rgba(255,180,0,0.14);
+    border-left: 5px solid #ffb400;
+    padding: 16px;
+    border-radius: 12px;
+}
+
+/* Labels */
+.label {
+    color: #b0b3c7;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+/* Final take */
+.final-take {
+    background: linear-gradient(90deg, #7f5cff, #4ddcff);
+    color: black;
+    padding: 18px;
+    border-radius: 14px;
+    font-weight: 600;
+    margin-top: 18px;
 }
 
 /* Buttons */
@@ -62,14 +99,14 @@ hr {
 # TITLE
 # ==================================================
 st.markdown("<h1>🧠 Analyst Brain Terminal</h1>", unsafe_allow_html=True)
-st.caption("Hybrid Equity Research Platform • Screener + Coverage Universe")
+st.caption("Hybrid Equity Research Platform • Screener + Infographic Coverage")
 
 # ==================================================
-# SIDEBAR MODE SELECT
+# SIDEBAR MODE
 # ==================================================
 mode = st.sidebar.radio(
     "Mode",
-    ["🔍 Market Screener", "📘 Coverage Universe (Deep Research)"]
+    ["🔍 Market Screener", "📘 Coverage Universe (Infographic Research)"]
 )
 
 # ==================================================
@@ -131,25 +168,12 @@ def derive_rating(rev_growth, margin_change, debt_change):
 
 def macro_overlay(sector):
     if sector == "IT Services":
-        return (
-            f"IT services are sensitive to global demand cycles. "
-            f"A {gdp.lower()} growth outlook combined with {interest_rate.lower()} "
-            f"interest rates is {'supportive' if gdp != 'Weak' else 'challenging'} "
-            f"for revenue visibility."
-        )
+        return f"Global demand cycles dominate IT services. A {gdp.lower()} growth outlook with {interest_rate.lower()} rates is {'supportive' if gdp != 'Weak' else 'challenging'}."
     if sector == "FMCG":
-        return (
-            f"FMCG businesses are influenced by consumption and inflation trends. "
-            f"{inflation} inflation and {gdp.lower()} GDP growth will directly affect "
-            f"volume growth and margin sustainability."
-        )
+        return f"Consumption and inflation trends drive FMCG performance. {inflation} inflation and {gdp.lower()} GDP growth influence volume and margin stability."
     if sector == "Conglomerate":
-        return (
-            f"Conglomerates are impacted by capital availability and economic cycles. "
-            f"{interest_rate} interest rates and {gdp.lower()} GDP growth will shape "
-            f"capital allocation and segment performance."
-        )
-    return "Macro conditions play a mixed role across business segments."
+        return f"Conglomerates are sensitive to capital availability. {interest_rate} rates and {gdp.lower()} GDP growth affect allocation and execution."
+    return "Macro conditions remain mixed."
 
 # ==================================================
 # MODE 1 — SCREENER
@@ -170,19 +194,19 @@ if mode == "🔍 Market Screener":
         (screener_df["RevenueGrowth"] >= min_growth)
     ]
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="infocard">', unsafe_allow_html=True)
     st.write(
-        "This module is used strictly for **idea discovery**. "
-        "No narrative research or ratings are generated at this stage."
+        "This module is strictly for **idea discovery**. "
+        "Stocks shortlisted here can be promoted into the Coverage Universe."
     )
     st.dataframe(filtered, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ==================================================
-# MODE 2 — COVERAGE UNIVERSE
+# MODE 2 — INFOGRAPHIC COVERAGE
 # ==================================================
-if mode == "📘 Coverage Universe (Deep Research)":
-    st.subheader("📘 Coverage Universe — Full Narrative Research")
+if mode == "📘 Coverage Universe (Infographic Research)":
+    st.subheader("📘 Coverage Universe — Visual Research Notes")
 
     companies = st.multiselect(
         "Select companies under coverage",
@@ -191,57 +215,65 @@ if mode == "📘 Coverage Universe (Deep Research)":
     )
 
     for company in companies:
-        st.divider()
         sector = sector_map.get(company, "General")
         df = coverage_df[coverage_df["Company"] == company].sort_values("Year")
 
         rev_growth = (df["Revenue"].iloc[-1] / df["Revenue"].iloc[0] - 1) * 100
-        margin_change = (
-            df["EBIT"].iloc[-1] / df["Revenue"].iloc[-1]
-            - df["EBIT"].iloc[0] / df["Revenue"].iloc[0]
-        )
+        margin_change = (df["EBIT"].iloc[-1] / df["Revenue"].iloc[-1]) - \
+                        (df["EBIT"].iloc[0] / df["Revenue"].iloc[0])
         debt_change = df["Debt"].iloc[-1] - df["Debt"].iloc[0]
 
         rating = derive_rating(rev_growth, margin_change, debt_change)
 
-        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown('<div class="infocard">', unsafe_allow_html=True)
 
-        st.subheader(company)
-        st.caption(f"Sector: {sector} | Rating: {rating}")
+        st.markdown(f"""
+        <div class="label">Coverage Snapshot</div>
+        <h2>{company}</h2>
+        <p><b>Sector:</b> {sector} &nbsp; | &nbsp; <b>Rating:</b> {rating}</p>
+        """, unsafe_allow_html=True)
 
-        st.markdown("**Executive Summary**")
-        st.write(
-            f"{company} operates within the {sector} sector and has delivered "
-            f"{rev_growth:.1f}% revenue growth over the analysis period. "
-            f"The stock is currently assessed with a **{rating}**."
-        )
+        st.markdown('<div class="strip">', unsafe_allow_html=True)
+        st.markdown("**📈 Growth**")
+        st.write(f"Revenue expanded by {rev_growth:.1f}%, indicating sustained scale expansion.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown("**Business & Financial Analysis**")
-        st.write(
-            f"Growth has been supported by operating scale and "
-            f"{'improving' if margin_change > 0 else 'stable'} margins, "
-            "indicating reasonable operating leverage."
-        )
+        st.markdown('<div class="strip">', unsafe_allow_html=True)
+        st.markdown("**💰 Profitability**")
+        st.write(f"Margins have {'improved' if margin_change > 0 else 'remained stable'}, reflecting operating discipline.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown("**Balance Sheet & Capital Allocation**")
-        st.write(
-            f"Debt levels have {'increased' if debt_change > 0 else 'remained controlled'}, "
-            "making capital allocation discipline an important monitorable."
-        )
+        st.markdown('<div class="strip">', unsafe_allow_html=True)
+        st.markdown("**🏦 Balance Sheet**")
+        st.write(f"Debt levels have {'risen' if debt_change > 0 else 'remained controlled'}, making leverage a key monitorable.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown("**Macro Overlay**")
+        st.markdown('<div class="strip">', unsafe_allow_html=True)
+        st.markdown("**🌍 Macro Overlay**")
         st.write(macro_overlay(sector))
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown("**Conclusion**")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown('<div class="signal-good">', unsafe_allow_html=True)
+            st.markdown("**What’s Working**")
+            st.write("• Scale\n• Margin stability\n• Business resilience")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with col2:
+            st.markdown('<div class="signal-watch">', unsafe_allow_html=True)
+            st.markdown("**What to Watch**")
+            st.write("• Capital allocation\n• Debt trajectory\n• Macro sensitivity")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="final-take">', unsafe_allow_html=True)
         st.write(
-            f"Overall, {company} presents a "
+            f"{company} shows a "
             f"{'constructive' if 'Positive' in rating else 'balanced'} "
-            "fundamental profile and remains part of the active coverage universe."
+            "fundamental setup, with execution quality and macro alignment as key drivers."
         )
+        st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('</div>', unsafe_allow_html=True)
 
-# ==================================================
-# FOOTER
-# ==================================================
-st.caption("⚠️ Educational hybrid equity research terminal. Not investment advice.")
+st.caption("⚠️ Educational equity research terminal. Not investment advice.")
