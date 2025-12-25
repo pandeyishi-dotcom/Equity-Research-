@@ -2,23 +2,78 @@ import streamlit as st
 import pandas as pd
 from io import StringIO
 
-# --------------------------------------------------
+# ==================================================
 # PAGE CONFIG
-# --------------------------------------------------
-st.set_page_config(page_title="Analyst Brain – Hybrid Research Platform", layout="wide")
-st.title("🧠 Analyst Brain")
-st.caption("Hybrid Equity Research Platform: Screener + Coverage")
-
-# --------------------------------------------------
-# SIDEBAR: MODE SELECTION
-# --------------------------------------------------
-mode = st.sidebar.radio(
-    "Select Mode",
-    ["Market Screener", "Coverage Universe (Deep Research)"]
+# ==================================================
+st.set_page_config(
+    page_title="Analyst Brain Terminal",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # ==================================================
-# DATA LAYER 1: SCREENER (WIDE & LIGHT)
+# DARK TERMINAL THEME (REAPPLIED)
+# ==================================================
+st.markdown("""
+<style>
+.stApp {
+    background: radial-gradient(circle at top left, #1b1f3b, #0b0e1a);
+    color: #eaeaf0;
+    font-family: Inter, sans-serif;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #11142a, #0b0e1a);
+}
+
+/* Headers */
+h1, h2, h3 {
+    color: #ffffff;
+}
+
+/* Cards */
+.card {
+    background: rgba(255,255,255,0.06);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.45);
+    margin-bottom: 20px;
+}
+
+/* Subtle divider */
+hr {
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Buttons */
+.stButton>button {
+    background: linear-gradient(90deg, #7f5cff, #4ddcff);
+    color: black;
+    border-radius: 12px;
+    padding: 10px 18px;
+    font-weight: 600;
+    border: none;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ==================================================
+# TITLE
+# ==================================================
+st.markdown("<h1>🧠 Analyst Brain Terminal</h1>", unsafe_allow_html=True)
+st.caption("Hybrid Equity Research Platform • Screener + Coverage Universe")
+
+# ==================================================
+# SIDEBAR MODE SELECT
+# ==================================================
+mode = st.sidebar.radio(
+    "Mode",
+    ["🔍 Market Screener", "📘 Coverage Universe (Deep Research)"]
+)
+
+# ==================================================
+# DATA — SCREENER (WIDE)
 # ==================================================
 screener_csv = """
 Company,MarketCap,RevenueGrowth,ROE,DebtEquity,Sector
@@ -33,11 +88,10 @@ Bharti Airtel,900000,20,15,1.8,Telecom
 L&T,800000,11,14,1.5,Infrastructure
 Asian Paints,750000,6,40,0.0,Consumer
 """
-
 screener_df = pd.read_csv(StringIO(screener_csv))
 
 # ==================================================
-# DATA LAYER 2: COVERAGE (DEEP & CLEAN)
+# DATA — COVERAGE (DEEP)
 # ==================================================
 coverage_csv = """
 Company,Year,Revenue,EBIT,PAT,OCF,Debt
@@ -48,7 +102,6 @@ TCS,2024,240893,56000,45000,49000,11000
 ITC,2020,44674,17000,15000,15500,12000
 ITC,2024,70500,27000,22000,23500,8000
 """
-
 coverage_df = pd.read_csv(StringIO(coverage_csv))
 
 sector_map = {
@@ -58,10 +111,51 @@ sector_map = {
 }
 
 # ==================================================
-# MODE 1: MARKET SCREENER
+# MACRO INPUTS
 # ==================================================
-if mode == "Market Screener":
-    st.subheader("🔍 Market Screener (Idea Discovery)")
+st.sidebar.markdown("### 🌍 Macro Assumptions")
+interest_rate = st.sidebar.selectbox("Interest Rates", ["Falling", "Stable", "Rising"])
+inflation = st.sidebar.selectbox("Inflation", ["Cooling", "Stable", "Elevated"])
+gdp = st.sidebar.selectbox("GDP Growth", ["Strong", "Moderate", "Weak"])
+
+# ==================================================
+# HELPER FUNCTIONS
+# ==================================================
+def derive_rating(rev_growth, margin_change, debt_change):
+    if rev_growth > 40 and margin_change > 0 and debt_change <= 0:
+        return "Positive Bias (Academic Buy-equivalent)"
+    elif rev_growth > 20:
+        return "Neutral Bias (Academic Hold-equivalent)"
+    else:
+        return "Cautious Bias (Academic Underperform-equivalent)"
+
+def macro_overlay(sector):
+    if sector == "IT Services":
+        return (
+            f"IT services are sensitive to global demand cycles. "
+            f"A {gdp.lower()} growth outlook combined with {interest_rate.lower()} "
+            f"interest rates is {'supportive' if gdp != 'Weak' else 'challenging'} "
+            f"for revenue visibility."
+        )
+    if sector == "FMCG":
+        return (
+            f"FMCG businesses are influenced by consumption and inflation trends. "
+            f"{inflation} inflation and {gdp.lower()} GDP growth will directly affect "
+            f"volume growth and margin sustainability."
+        )
+    if sector == "Conglomerate":
+        return (
+            f"Conglomerates are impacted by capital availability and economic cycles. "
+            f"{interest_rate} interest rates and {gdp.lower()} GDP growth will shape "
+            f"capital allocation and segment performance."
+        )
+    return "Macro conditions play a mixed role across business segments."
+
+# ==================================================
+# MODE 1 — SCREENER
+# ==================================================
+if mode == "🔍 Market Screener":
+    st.subheader("🔍 Market Screener — Idea Discovery")
 
     sector_filter = st.multiselect(
         "Filter by Sector",
@@ -76,26 +170,22 @@ if mode == "Market Screener":
         (screener_df["RevenueGrowth"] >= min_growth)
     ]
 
+    st.markdown('<div class="card">', unsafe_allow_html=True)
     st.write(
-        "This screener is used **only for idea discovery**. "
+        "This module is used strictly for **idea discovery**. "
         "No narrative research or ratings are generated at this stage."
     )
-
     st.dataframe(filtered, use_container_width=True)
-
-    st.info(
-        "➡️ Stocks shortlisted here can be moved into the "
-        "**Coverage Universe** for deep research."
-    )
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ==================================================
-# MODE 2: COVERAGE UNIVERSE
+# MODE 2 — COVERAGE UNIVERSE
 # ==================================================
-if mode == "Coverage Universe (Deep Research)":
-    st.subheader("📘 Coverage Universe – Full Equity Research")
+if mode == "📘 Coverage Universe (Deep Research)":
+    st.subheader("📘 Coverage Universe — Full Narrative Research")
 
     companies = st.multiselect(
-        "Select companies for coverage",
+        "Select companies under coverage",
         coverage_df["Company"].unique(),
         default=coverage_df["Company"].unique().tolist()
     )
@@ -106,44 +196,52 @@ if mode == "Coverage Universe (Deep Research)":
         df = coverage_df[coverage_df["Company"] == company].sort_values("Year")
 
         rev_growth = (df["Revenue"].iloc[-1] / df["Revenue"].iloc[0] - 1) * 100
-        margin_change = (df["EBIT"].iloc[-1] / df["Revenue"].iloc[-1]) - \
-                        (df["EBIT"].iloc[0] / df["Revenue"].iloc[0])
+        margin_change = (
+            df["EBIT"].iloc[-1] / df["Revenue"].iloc[-1]
+            - df["EBIT"].iloc[0] / df["Revenue"].iloc[0]
+        )
         debt_change = df["Debt"].iloc[-1] - df["Debt"].iloc[0]
 
-        rating = (
-            "Positive Bias (Academic Buy-equivalent)"
-            if rev_growth > 40 and margin_change > 0
-            else "Neutral Bias (Academic Hold-equivalent)"
-        )
+        rating = derive_rating(rev_growth, margin_change, debt_change)
 
-        st.subheader(f"{company} – Equity Research Coverage")
-        st.caption(f"Sector: {sector}")
+        st.markdown('<div class="card">', unsafe_allow_html=True)
 
-        st.markdown("### Executive Summary")
+        st.subheader(company)
+        st.caption(f"Sector: {sector} | Rating: {rating}")
+
+        st.markdown("**Executive Summary**")
         st.write(
-            f"{company} is part of the {sector} sector and has delivered "
+            f"{company} operates within the {sector} sector and has delivered "
             f"{rev_growth:.1f}% revenue growth over the analysis period. "
-            f"The company is currently assessed with a **{rating}**."
+            f"The stock is currently assessed with a **{rating}**."
         )
 
-        st.markdown("### Financial & Business Analysis")
+        st.markdown("**Business & Financial Analysis**")
         st.write(
-            "Growth has been supported by operating scale and stable profitability. "
-            f"Margins have {'improved' if margin_change > 0 else 'remained stable'}, "
+            f"Growth has been supported by operating scale and "
+            f"{'improving' if margin_change > 0 else 'stable'} margins, "
             "indicating reasonable operating leverage."
         )
 
-        st.markdown("### Balance Sheet & Capital Allocation")
+        st.markdown("**Balance Sheet & Capital Allocation**")
         st.write(
             f"Debt levels have {'increased' if debt_change > 0 else 'remained controlled'}, "
             "making capital allocation discipline an important monitorable."
         )
 
-        st.markdown("### Conclusion")
+        st.markdown("**Macro Overlay**")
+        st.write(macro_overlay(sector))
+
+        st.markdown("**Conclusion**")
         st.write(
             f"Overall, {company} presents a "
             f"{'constructive' if 'Positive' in rating else 'balanced'} "
-            "fundamental profile. The stock remains part of the active coverage universe."
+            "fundamental profile and remains part of the active coverage universe."
         )
 
-st.caption("⚠️ Educational hybrid research platform. Not investment advice.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# ==================================================
+# FOOTER
+# ==================================================
+st.caption("⚠️ Educational hybrid equity research terminal. Not investment advice.")
