@@ -1,17 +1,17 @@
 import streamlit as st
 import pandas as pd
 from io import StringIO
-from math import sqrt
+import matplotlib.pyplot as plt
 
 # --------------------------------------------------
 # APP CONFIG
 # --------------------------------------------------
 st.set_page_config(page_title="Analyst Brain X", layout="wide")
 st.title("🧠 Analyst Brain X")
-st.caption("Institutional-Style Equity Research Intelligence")
+st.caption("Institutional-Style Equity Research Intelligence with Visual Analytics")
 
 # --------------------------------------------------
-# EMBEDDED FUNDAMENTALS (CONTROLLED DATA)
+# EMBEDDED FUNDAMENTAL DATA
 # --------------------------------------------------
 csv_data = """
 Company,Year,Revenue,EBIT,PAT,OCF,Debt
@@ -59,96 +59,169 @@ st.caption(f"Sector: {sector}")
 df = data[data["Company"] == company].sort_values("Year")
 
 # --------------------------------------------------
-# CORE METRICS
+# METRICS
 # --------------------------------------------------
 df["Revenue Growth %"] = df["Revenue"].pct_change() * 100
 df["PAT Growth %"] = df["PAT"].pct_change() * 100
 df["EBIT Margin %"] = (df["EBIT"] / df["Revenue"]) * 100
-df["Capital Employed"] = df["Debt"] + 0.3 * df["Revenue"]
+df["Capital Employed"] = df["Debt"] + (0.3 * df["Revenue"])
 df["ROCE %"] = (df["EBIT"] / df["Capital Employed"]) * 100
+df["EPS Index"] = df["PAT"] / 1000
 
 # --------------------------------------------------
-# MACRO STRESS TESTING (ADVANCED)
+# SNAPSHOT TABLE
 # --------------------------------------------------
-st.subheader("🌍 Macro Stress Testing")
-
-inflation = st.slider("Inflation Shock (%)", -5.0, 10.0, 0.0)
-rates = st.slider("Interest Rate Shock (%)", -3.0, 5.0, 0.0)
-growth = st.slider("GDP Growth Shock (%)", -5.0, 5.0, 0.0)
-
-def macro_impact(sector, inf, rate, gdp):
-    impact = 0
-    if sector == "Banking":
-        impact += rate * 0.6 + gdp * 0.4
-    elif sector == "IT Services":
-        impact += gdp * 0.7 - inf * 0.3
-    elif sector == "FMCG":
-        impact -= inf * 0.6 + gdp * 0.2
-    else:
-        impact += gdp * 0.5 - rate * 0.2
-    return impact
-
-macro_score = macro_impact(sector, inflation, rates, growth)
-st.metric("Macro Sensitivity Score", round(macro_score, 2))
+st.subheader("📊 Financial Snapshot")
+st.dataframe(df.round(2), use_container_width=True)
 
 # --------------------------------------------------
-# FACTOR ATTRIBUTION (VERY BUY-SIDE)
+# CHART 1: Revenue, EBIT, PAT
 # --------------------------------------------------
-st.subheader("🧬 Factor Attribution")
+st.subheader("📈 Revenue, EBIT & PAT Trend")
 
-factors = {
-    "Growth": df["Revenue Growth %"].iloc[-1],
-    "Profitability": df["EBIT Margin %"].iloc[-1],
-    "Capital Efficiency": df["ROCE %"].iloc[-1],
-    "Balance Sheet": -df["Debt"].iloc[-1] / df["Revenue"].iloc[-1]
-}
-
-factor_df = pd.DataFrame.from_dict(factors, orient="index", columns=["Impact Score"])
-st.dataframe(factor_df.round(2), use_container_width=True)
-
-# --------------------------------------------------
-# CONFIDENCE-WEIGHTED THESIS SCORE
-# --------------------------------------------------
-st.subheader("🎯 Conviction Scoring Model")
-
-score = 0
-score += 1 if df["Revenue Growth %"].iloc[-1] > 5 else -1
-score += 1 if df["ROCE %"].iloc[-1] > 15 else -1
-score += 1 if df["EBIT Margin %"].iloc[-1] > df["EBIT Margin %"].mean() else -1
-score += 1 if macro_score > 0 else -1
-
-confidence = (score + 4) / 8  # normalize 0–1
-
-st.metric("Confidence Score", round(confidence, 2))
+fig, ax = plt.subplots()
+ax.plot(df["Year"], df["Revenue"], label="Revenue")
+ax.plot(df["Year"], df["EBIT"], label="EBIT")
+ax.plot(df["Year"], df["PAT"], label="PAT")
+ax.set_xlabel("Year")
+ax.set_ylabel("₹ Crore")
+ax.legend()
+ax.grid(True)
+st.pyplot(fig)
 
 # --------------------------------------------------
-# POSITION SIZING LOGIC (NO RECOMMENDATIONS)
+# CHART 2: Margin & ROCE
 # --------------------------------------------------
-st.subheader("📐 Portfolio Context (Analyst View)")
+st.subheader("🏗 Margin & ROCE Trend")
 
-def position_guidance(conf):
-    if conf > 0.75:
-        return "High-conviction candidate (core position)"
-    elif conf > 0.5:
-        return "Moderate conviction (satellite position)"
-    else:
-        return "Low conviction (watchlist only)"
-
-st.info(position_guidance(confidence))
+fig, ax = plt.subplots()
+ax.plot(df["Year"], df["EBIT Margin %"], marker="o", label="EBIT Margin %")
+ax.plot(df["Year"], df["ROCE %"], marker="o", label="ROCE %")
+ax.set_xlabel("Year")
+ax.set_ylabel("Percentage")
+ax.legend()
+ax.grid(True)
+st.pyplot(fig)
 
 # --------------------------------------------------
-# EXECUTIVE SUMMARY (AUTO)
+# CHART 3: Debt vs OCF
+# --------------------------------------------------
+st.subheader("⚖️ Debt vs Operating Cash Flow")
+
+fig, ax1 = plt.subplots()
+ax1.bar(df["Year"], df["Debt"], alpha=0.6, label="Debt")
+ax1.set_ylabel("Debt (₹ Crore)")
+
+ax2 = ax1.twinx()
+ax2.plot(df["Year"], df["OCF"], marker="s", label="Operating Cash Flow")
+
+ax1.set_xlabel("Year")
+ax1.legend(loc="upper left")
+ax2.legend(loc="upper right")
+st.pyplot(fig)
+
+# --------------------------------------------------
+# ANALYST LOGIC
+# --------------------------------------------------
+def consistency(series):
+    pos = (series > 0).sum()
+    total = len(series.dropna())
+    if total == 0:
+        return "Insufficient data"
+    ratio = pos / total
+    if ratio >= 0.8:
+        return "Highly Consistent"
+    elif ratio >= 0.5:
+        return "Moderately Consistent"
+    return "Inconsistent"
+
+def growth_quality(rg, pg):
+    if rg > 10 and pg > rg:
+        return "High Quality Growth"
+    if rg > 0 and pg > 0:
+        return "Moderate Quality Growth"
+    return "Low Quality Growth"
+
+def earnings_quality(pat, ocf):
+    if pat.iloc[-1] > pat.iloc[-2] and ocf.iloc[-1] < ocf.iloc[-2]:
+        return "⚠️ Profit rising but cash flow weakening"
+    return "Earnings supported by cash flow"
+
+def leverage_signal(debt):
+    return "⚠️ Rising leverage" if debt.iloc[-1] > debt.iloc[-2] else "Debt stable"
+
+def roce_signal(roce):
+    if roce > 20:
+        return "Excellent capital efficiency"
+    if roce > 12:
+        return "Acceptable capital efficiency"
+    return "⚠️ Weak capital efficiency"
+
+# --------------------------------------------------
+# INSIGHTS
+# --------------------------------------------------
+st.subheader("🧠 Analytical Insights")
+
+col1, col2 = st.columns(2)
+with col1:
+    st.metric("Revenue Consistency", consistency(df["Revenue Growth %"]))
+    st.metric("Margin Consistency", consistency(df["EBIT Margin %"].diff()))
+    st.metric("Growth Quality", growth_quality(df["Revenue Growth %"].iloc[-1], df["PAT Growth %"].iloc[-1]))
+
+with col2:
+    st.metric("Earnings Quality", earnings_quality(df["PAT"], df["OCF"]))
+    st.metric("Leverage Signal", leverage_signal(df["Debt"]))
+    st.metric("ROCE Signal", roce_signal(df["ROCE %"].iloc[-1]))
+
+# --------------------------------------------------
+# VALUATION SCENARIOS
+# --------------------------------------------------
+st.subheader("💰 Scenario Valuation")
+
+pe_base = 20 if sector == "IT Services" else 15 if sector == "Banking" else 18
+scenarios = {"Bear": pe_base - 3, "Base": pe_base, "Bull": pe_base + 3}
+
+scenario_values = []
+for s, pe in scenarios.items():
+    value = df["EPS Index"].iloc[-1] * pe
+    scenario_values.append(value)
+    st.write(f"{s} Case ({pe}x): {round(value,2)}")
+
+fig, ax = plt.subplots()
+ax.bar(scenarios.keys(), scenario_values)
+ax.set_ylabel("Implied Value Index")
+st.pyplot(fig)
+
+# --------------------------------------------------
+# THESIS STABILITY
+# --------------------------------------------------
+warnings = 0
+if "⚠️" in earnings_quality(df["PAT"], df["OCF"]):
+    warnings += 1
+if "⚠️" in leverage_signal(df["Debt"]):
+    warnings += 1
+if "⚠️" in roce_signal(df["ROCE %"].iloc[-1]):
+    warnings += 1
+
+st.subheader("📈 Thesis Stability")
+st.metric(
+    "Thesis Status",
+    "Strengthening" if warnings == 0 else "Stable but Fragile" if warnings == 1 else "Weakening"
+)
+
+# --------------------------------------------------
+# EXECUTIVE SUMMARY
 # --------------------------------------------------
 st.subheader("🧾 Executive Summary")
 
 st.write(
-    f"{company} operates in the {sector} sector with recent revenue growth of "
-    f"{round(df['Revenue Growth %'].iloc[-1],2)}% and ROCE of "
-    f"{round(df['ROCE %'].iloc[-1],2)}%. "
-    f"Macro sensitivity under current assumptions is assessed as "
-    f"{'favorable' if macro_score > 0 else 'challenging'}. "
-    f"Overall confidence score stands at {round(confidence,2)}, suggesting "
-    f"{position_guidance(confidence).lower()}."
+    f"{company} operates in the {sector} sector with "
+    f"{consistency(df['Revenue Growth %'])} revenue growth. "
+    f"Growth quality is assessed as {growth_quality(df['Revenue Growth %'].iloc[-1], df['PAT Growth %'].iloc[-1])}. "
+    f"Capital efficiency is {roce_signal(df['ROCE %'].iloc[-1])}, while "
+    f"{earnings_quality(df['PAT'], df['OCF'])}. "
+    f"Overall thesis is currently "
+    f"{'robust' if warnings == 0 else 'moderate' if warnings == 1 else 'under pressure'}."
 )
 
-st.caption("⚠️ Educational, analyst-style research system. Not investment advice.")
+st.caption("⚠️ Educational, analyst-style equity research system. Not investment advice.")
